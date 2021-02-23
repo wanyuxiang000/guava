@@ -14,17 +14,22 @@
 
 package com.google.common.util.concurrent;
 
-import com.google.common.annotations.GwtIncompatible;
+import static java.lang.Math.min;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import com.google.common.annotations.GwtIncompatible;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
-
-import javax.annotation.Nullable;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A {@link FutureTask} that also implements the {@link ListenableFuture} interface. Unlike 
- * {@code FutureTask}, {@code ListenableFutureTask} does not provide an overrideable {@link
+ * A {@link FutureTask} that also implements the {@link ListenableFuture} interface. Unlike {@code
+ * FutureTask}, {@code ListenableFutureTask} does not provide an overrideable {@link
  * FutureTask#done() done()} method. For similar functionality, call {@link #addListener}.
  *
  * <p>Few users should use this class. It is intended primarily for those who are implementing an
@@ -82,9 +87,21 @@ public class ListenableFutureTask<V> extends FutureTask<V> implements Listenable
     executionList.add(listener, exec);
   }
 
-  /**
-   * Internal implementation detail used to invoke the listeners.
-   */
+  @CanIgnoreReturnValue
+  @Override
+  public V get(long timeout, TimeUnit unit)
+      throws TimeoutException, InterruptedException, ExecutionException {
+
+    long timeoutNanos = unit.toNanos(timeout);
+    if (timeoutNanos <= OverflowAvoidingLockSupport.MAX_NANOSECONDS_THRESHOLD) {
+      return super.get(timeout, unit);
+    }
+    // Waiting 68 years should be enough for any program.
+    return super.get(
+        min(timeoutNanos, OverflowAvoidingLockSupport.MAX_NANOSECONDS_THRESHOLD), NANOSECONDS);
+  }
+
+  /** Internal implementation detail used to invoke the listeners. */
   @Override
   protected void done() {
     executionList.execute();

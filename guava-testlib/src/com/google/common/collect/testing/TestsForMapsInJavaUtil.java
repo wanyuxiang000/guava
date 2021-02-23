@@ -23,10 +23,6 @@ import com.google.common.collect.testing.features.CollectionFeature;
 import com.google.common.collect.testing.features.CollectionSize;
 import com.google.common.collect.testing.features.MapFeature;
 import com.google.common.collect.testing.testers.MapEntrySetTester;
-
-import junit.framework.Test;
-import junit.framework.TestSuite;
-
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -34,18 +30,21 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import junit.framework.Test;
+import junit.framework.TestSuite;
 
 /**
- * Generates a test suite covering the {@link Map} implementations in the
- * {@link java.util} package. Can be subclassed to specify tests that should
- * be suppressed.
+ * Generates a test suite covering the {@link Map} implementations in the {@link java.util} package.
+ * Can be subclassed to specify tests that should be suppressed.
  *
  * @author Kevin Bourrillion
  */
@@ -58,12 +57,22 @@ public class TestsForMapsInJavaUtil {
 
   public Test allTests() {
     TestSuite suite = new TestSuite("java.util Maps");
+    suite.addTest(testsForCheckedMap());
+    suite.addTest(testsForCheckedNavigableMap());
+    suite.addTest(testsForCheckedSortedMap());
     suite.addTest(testsForEmptyMap());
+    suite.addTest(testsForEmptyNavigableMap());
+    suite.addTest(testsForEmptySortedMap());
     suite.addTest(testsForSingletonMap());
     suite.addTest(testsForHashMap());
+    suite.addTest(testsForHashtable());
     suite.addTest(testsForLinkedHashMap());
+    suite.addTest(testsForSynchronizedNavigableMap());
     suite.addTest(testsForTreeMapNatural());
     suite.addTest(testsForTreeMapWithComparator());
+    suite.addTest(testsForUnmodifiableMap());
+    suite.addTest(testsForUnmodifiableNavigableMap());
+    suite.addTest(testsForUnmodifiableSortedMap());
     suite.addTest(testsForEnumMap());
     suite.addTest(testsForConcurrentHashMap());
     suite.addTest(testsForConcurrentSkipListMapNatural());
@@ -71,7 +80,27 @@ public class TestsForMapsInJavaUtil {
     return suite;
   }
 
+  protected Collection<Method> suppressForCheckedMap() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForCheckedNavigableMap() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForCheckedSortedMap() {
+    return Collections.emptySet();
+  }
+
   protected Collection<Method> suppressForEmptyMap() {
+    return Collections.emptySet();
+  }
+
+  private Collection<Method> suppressForEmptyNavigableMap() {
+    return Collections.emptySet();
+  }
+
+  private Collection<Method> suppressForEmptySortedMap() {
     return Collections.emptySet();
   }
 
@@ -83,7 +112,15 @@ public class TestsForMapsInJavaUtil {
     return Collections.emptySet();
   }
 
+  protected Collection<Method> suppressForHashtable() {
+    return Collections.emptySet();
+  }
+
   protected Collection<Method> suppressForLinkedHashMap() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForSynchronizedNavigableMap() {
     return Collections.emptySet();
   }
 
@@ -92,6 +129,18 @@ public class TestsForMapsInJavaUtil {
   }
 
   protected Collection<Method> suppressForTreeMapWithComparator() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForUnmodifiableMap() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForUnmodifiableNavigableMap() {
+    return Collections.emptySet();
+  }
+
+  protected Collection<Method> suppressForUnmodifiableSortedMap() {
     return Collections.emptySet();
   }
 
@@ -104,7 +153,83 @@ public class TestsForMapsInJavaUtil {
   }
 
   protected Collection<Method> suppressForConcurrentSkipListMap() {
-    return asList(MapEntrySetTester.getSetValueMethod());
+    return asList(
+        MapEntrySetTester.getSetValueMethod(),
+        MapEntrySetTester.getSetValueWithNullValuesAbsentMethod(),
+        MapEntrySetTester.getSetValueWithNullValuesPresentMethod());
+  }
+
+  public Test testsForCheckedMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringMapGenerator() {
+              @Override
+              protected Map<String, String> create(Entry<String, String>[] entries) {
+                Map<String, String> map = populate(new HashMap<String, String>(), entries);
+                return Collections.checkedMap(map, String.class, String.class);
+              }
+            })
+        .named("checkedMap/HashMap")
+        .withFeatures(
+            MapFeature.GENERAL_PURPOSE,
+            MapFeature.ALLOWS_NULL_KEYS,
+            MapFeature.ALLOWS_NULL_VALUES,
+            MapFeature.ALLOWS_ANY_NULL_QUERIES,
+            MapFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            MapFeature.RESTRICTS_KEYS,
+            MapFeature.RESTRICTS_VALUES,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForCheckedMap())
+        .createTestSuite();
+  }
+
+  public Test testsForCheckedNavigableMap() {
+    return SortedMapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected NavigableMap<String, String> create(Entry<String, String>[] entries) {
+                NavigableMap<String, String> map = populate(new TreeMap<String, String>(), entries);
+                return Collections.checkedNavigableMap(map, String.class, String.class);
+              }
+            })
+        .named("checkedNavigableMap/TreeMap, natural")
+        .withFeatures(
+            MapFeature.GENERAL_PURPOSE,
+            MapFeature.ALLOWS_NULL_VALUES,
+            MapFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            MapFeature.RESTRICTS_KEYS,
+            MapFeature.RESTRICTS_VALUES,
+            CollectionFeature.KNOWN_ORDER,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForCheckedNavigableMap())
+        .createTestSuite();
+  }
+
+  public Test testsForCheckedSortedMap() {
+    return SortedMapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected SortedMap<String, String> create(Entry<String, String>[] entries) {
+                SortedMap<String, String> map = populate(new TreeMap<String, String>(), entries);
+                return Collections.checkedSortedMap(map, String.class, String.class);
+              }
+            })
+        .named("checkedSortedMap/TreeMap, natural")
+        .withFeatures(
+            MapFeature.GENERAL_PURPOSE,
+            MapFeature.ALLOWS_NULL_VALUES,
+            MapFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            MapFeature.RESTRICTS_KEYS,
+            MapFeature.RESTRICTS_VALUES,
+            CollectionFeature.KNOWN_ORDER,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForCheckedSortedMap())
+        .createTestSuite();
   }
 
   public Test testsForEmptyMap() {
@@ -118,6 +243,34 @@ public class TestsForMapsInJavaUtil {
         .named("emptyMap")
         .withFeatures(CollectionFeature.SERIALIZABLE, CollectionSize.ZERO)
         .suppressing(suppressForEmptyMap())
+        .createTestSuite();
+  }
+
+  public Test testsForEmptyNavigableMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected NavigableMap<String, String> create(Entry<String, String>[] entries) {
+                return Collections.emptyNavigableMap();
+              }
+            })
+        .named("emptyNavigableMap")
+        .withFeatures(CollectionFeature.SERIALIZABLE, CollectionSize.ZERO)
+        .suppressing(suppressForEmptyNavigableMap())
+        .createTestSuite();
+  }
+
+  public Test testsForEmptySortedMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected SortedMap<String, String> create(Entry<String, String>[] entries) {
+                return Collections.emptySortedMap();
+              }
+            })
+        .named("emptySortedMap")
+        .withFeatures(CollectionFeature.SERIALIZABLE, CollectionSize.ZERO)
+        .suppressing(suppressForEmptySortedMap())
         .createTestSuite();
   }
 
@@ -162,6 +315,29 @@ public class TestsForMapsInJavaUtil {
         .createTestSuite();
   }
 
+  public Test testsForHashtable() {
+    return MapTestSuiteBuilder.using(
+            new TestStringMapGenerator() {
+              @Override
+              protected Map<String, String> create(Entry<String, String>[] entries) {
+                return populate(new Hashtable<String, String>(), entries);
+              }
+            })
+        .withFeatures(
+            MapFeature.GENERAL_PURPOSE,
+            MapFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            MapFeature.RESTRICTS_KEYS,
+            MapFeature.SUPPORTS_REMOVE,
+            CollectionFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            CollectionFeature.SERIALIZABLE,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+            CollectionFeature.SUPPORTS_REMOVE,
+            CollectionSize.ANY)
+        .named("Hashtable")
+        .suppressing(suppressForHashtable())
+        .createTestSuite();
+  }
+
   public Test testsForLinkedHashMap() {
     return MapTestSuiteBuilder.using(
             new TestStringMapGenerator() {
@@ -182,6 +358,32 @@ public class TestsForMapsInJavaUtil {
             CollectionFeature.SERIALIZABLE,
             CollectionSize.ANY)
         .suppressing(suppressForLinkedHashMap())
+        .createTestSuite();
+  }
+
+  /**
+   * Tests regular NavigableMap behavior of synchronizedNavigableMap(treeMap); does not test the
+   * fact that it's synchronized.
+   */
+  public Test testsForSynchronizedNavigableMap() {
+    return NavigableMapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected SortedMap<String, String> create(Entry<String, String>[] entries) {
+                NavigableMap<String, String> delegate = populate(new TreeMap<>(), entries);
+                return Collections.synchronizedNavigableMap(delegate);
+              }
+            })
+        .named("synchronizedNavigableMap/TreeMap, natural")
+        .withFeatures(
+            MapFeature.GENERAL_PURPOSE,
+            MapFeature.ALLOWS_NULL_VALUES,
+            MapFeature.FAILS_FAST_ON_CONCURRENT_MODIFICATION,
+            CollectionFeature.SUPPORTS_ITERATOR_REMOVE,
+            CollectionFeature.KNOWN_ORDER,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForSynchronizedNavigableMap())
         .createTestSuite();
   }
 
@@ -234,6 +436,62 @@ public class TestsForMapsInJavaUtil {
         .createTestSuite();
   }
 
+  public Test testsForUnmodifiableMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringMapGenerator() {
+              @Override
+              protected Map<String, String> create(Entry<String, String>[] entries) {
+                return Collections.unmodifiableMap(toHashMap(entries));
+              }
+            })
+        .named("unmodifiableMap/HashMap")
+        .withFeatures(
+            MapFeature.ALLOWS_NULL_KEYS,
+            MapFeature.ALLOWS_NULL_VALUES,
+            MapFeature.ALLOWS_ANY_NULL_QUERIES,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForUnmodifiableMap())
+        .createTestSuite();
+  }
+
+  public Test testsForUnmodifiableNavigableMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected NavigableMap<String, String> create(Entry<String, String>[] entries) {
+                return Collections.unmodifiableNavigableMap(populate(new TreeMap<>(), entries));
+              }
+            })
+        .named("unmodifiableNavigableMap/TreeMap, natural")
+        .withFeatures(
+            MapFeature.ALLOWS_NULL_VALUES,
+            CollectionFeature.KNOWN_ORDER,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForUnmodifiableNavigableMap())
+        .createTestSuite();
+  }
+
+  public Test testsForUnmodifiableSortedMap() {
+    return MapTestSuiteBuilder.using(
+            new TestStringSortedMapGenerator() {
+              @Override
+              protected SortedMap<String, String> create(Entry<String, String>[] entries) {
+                SortedMap<String, String> map = populate(new TreeMap<String, String>(), entries);
+                return Collections.unmodifiableSortedMap(map);
+              }
+            })
+        .named("unmodifiableSortedMap/TreeMap, natural")
+        .withFeatures(
+            MapFeature.ALLOWS_NULL_VALUES,
+            CollectionFeature.KNOWN_ORDER,
+            CollectionFeature.SERIALIZABLE,
+            CollectionSize.ANY)
+        .suppressing(suppressForUnmodifiableSortedMap())
+        .createTestSuite();
+  }
+
   public Test testsForEnumMap() {
     return MapTestSuiteBuilder.using(
             new TestEnumMapGenerator() {
@@ -256,7 +514,7 @@ public class TestsForMapsInJavaUtil {
   }
 
   public Test testsForConcurrentHashMap() {
-    return ConcurrentMapTestSuiteBuilder.using(
+    return MapTestSuiteBuilder.using(
             new TestStringMapGenerator() {
               @Override
               protected Map<String, String> create(Entry<String, String>[] entries) {
@@ -274,7 +532,7 @@ public class TestsForMapsInJavaUtil {
   }
 
   public Test testsForConcurrentSkipListMapNatural() {
-    return ConcurrentNavigableMapTestSuiteBuilder.using(
+    return NavigableMapTestSuiteBuilder.using(
             new TestStringSortedMapGenerator() {
               @Override
               protected SortedMap<String, String> create(Entry<String, String>[] entries) {
@@ -293,7 +551,7 @@ public class TestsForMapsInJavaUtil {
   }
 
   public Test testsForConcurrentSkipListMapWithComparator() {
-    return ConcurrentNavigableMapTestSuiteBuilder.using(
+    return NavigableMapTestSuiteBuilder.using(
             new TestStringSortedMapGenerator() {
               @Override
               protected SortedMap<String, String> create(Entry<String, String>[] entries) {
